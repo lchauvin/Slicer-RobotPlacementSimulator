@@ -93,6 +93,7 @@ class RobotPlacementSimulatorWidget(ScriptedLoadableModuleWidget):
     self.outputTransform.nodeTypes = ( ("vtkMRMLLinearTransformNode"), "" )
     self.outputTransform.selectNodeUponCreation = True
     self.outputTransform.addEnabled = True
+    self.outputTransform.renameEnabled = True
     self.outputTransform.removeEnabled = True
     self.outputTransform.noneEnabled = False
     self.outputTransform.showHidden = False
