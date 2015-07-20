@@ -249,6 +249,13 @@ class RobotPlacementSimulatorLogic(ScriptedLoadableModuleLogic):
       return False
     return True
 
+  def calculatePerpendicularVectors(self, initialVector, v1, v2):
+    vtkmath = vtk.vtkMath()
+
+    tmpZvector = [0.0, 0.0, 1.0]
+    vtkmath.Cross(initialVector, tmpZvector, v1)
+    vtkmath.Cross(initialVector, v1, v2)
+
   def run(self, inputModel, sphereModel, spherePosition, outputTransform):
     """
     Run the actual algorithm
@@ -309,7 +316,8 @@ class RobotPlacementSimulatorLogic(ScriptedLoadableModuleLogic):
     v2 = [0.0, 0.0, 0.0]
     
     vtkmath = vtk.vtkMath()
-    vtkmath.Perpendiculars(averageNormal, v2, v1, 0)
+    #vtkmath.Perpendiculars(averageNormal, v2, v1, 0)
+    self.calculatePerpendicularVectors(averageNormal, v2, v1)
 
     # Normalize vectors
     vtkmath.Normalize(averageNormal)
@@ -344,7 +352,6 @@ class RobotPlacementSimulatorLogic(ScriptedLoadableModuleLogic):
     logging.info('Processing completed')
 
     return True
-
 
 class RobotPlacementSimulatorTest(ScriptedLoadableModuleTest):
   """
