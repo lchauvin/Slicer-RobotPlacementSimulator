@@ -209,14 +209,15 @@ class RobotPlacementSimulatorWidget(ScriptedLoadableModuleWidget):
     self.sphereModel.Modified()
 
   def checkConditions(self):
-    self.applyButton.enabled = self.sphereMarkupList.GetNumberOfMarkups() and self.outputTransform.currentNode() and self.inputModel.currentNode()
+    if self.sphereMarkupList and self.outputTransform and self.inputModel:
+      self.applyButton.enabled = self.sphereMarkupList.GetNumberOfMarkups() and self.outputTransform.currentNode() and self.inputModel.currentNode()
 
   def onApplyButton(self):
     logic = RobotPlacementSimulatorLogic()
     
     spherePosition = [0.0, 0.0, 0.0]
     self.sphereMarkupList.GetNthFiducialPosition(0, spherePosition)
-    logic.run(self.inputModel.currentNode(), self.sphereModel, spherePosition, self.outputTransform.currentNode())
+    logic.run(self.inputModel.currentNode(), spherePosition, self.sphereRadiusWidget.value, self.outputTransform.currentNode())
 
 #
 # RobotPlacementSimulatorLogic
@@ -232,21 +233,15 @@ class RobotPlacementSimulatorLogic(ScriptedLoadableModuleLogic):
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
 
-  def isValidInputOutputData(self, inputModel, sphereModel, outputTransform):
+  def isValidInputOutputData(self, inputModel, outputTransform):
     """Validates if the output is not the same as input
     """
     if not inputModel:
       logging.debug('isValidInputOutputData failed: no input model node defined')
       return False
-    if not sphereModel:
-      logging.debug('isValidInputOutputData failed: no sphere model node defined')
-      return False
     if not outputTransform:
       logging.debug('isValidInputOutputData failed: no output transform node defined')
       return False      
-    if inputModel.GetID()==sphereModel.GetID():
-      logging.debug('isValidInputOutputData failed: input and sphere models are the same. Use a different input model.')
-      return False
     return True
 
   def calculatePerpendicularVectors(self, initialVector, v1, v2):
@@ -256,38 +251,31 @@ class RobotPlacementSimulatorLogic(ScriptedLoadableModuleLogic):
     vtkmath.Cross(initialVector, tmpZvector, v1)
     vtkmath.Cross(initialVector, v1, v2)
 
-  def run(self, inputModel, sphereModel, spherePosition, outputTransform):
+  def run(self, inputModel, spherePosition, sphereRadius, outputTransform):
     """
     Run the actual algorithm
     """
 
-    if not self.isValidInputOutputData(inputModel, sphereModel, outputTransform):
+    if not self.isValidInputOutputData(inputModel, outputTransform):
       slicer.util.errorDisplay('Input model is the same as sphere model. Choose a different input model.')
       return False
 
     logging.info('Processing started')
 
     # Convert sphere model to an implicit dataset to clip input model with it
-    delaunay = vtk.vtkDelaunay3D()
-    delaunay.SetInputData(sphereModel.GetPolyData())
-    delaunay.Update()
-
-    elevation = vtk.vtkElevationFilter()
-    elevation.SetInputData(delaunay.GetOutput())
-    elevation.Update();
-
-    implicitDataSet = vtk.vtkImplicitDataSet()
-    implicitDataSet.SetDataSet(elevation.GetOutput())
+    sphere = vtk.vtkSphere()
+    sphere.SetCenter(spherePosition)
+    sphere.SetRadius(sphereRadius)
 
     # Clip and clean input model
     triangle = vtk.vtkTriangleFilter()
     triangle.SetInputData(inputModel.GetPolyData())
     triangle.Update()
-    
+
     clip = vtk.vtkClipPolyData()
     clip.SetInputData(triangle.GetOutput())
-    clip.SetClipFunction(implicitDataSet)
-    clip.InsideOutOff()
+    clip.SetClipFunction(sphere)
+    clip.InsideOutOn()
     clip.Update()
 
     clean = vtk.vtkCleanPolyData()
